@@ -1,46 +1,46 @@
 import yfinance as yf
 import matplotlib.pyplot as plt
+import pandas as pd
 
-# Download data for one ticker
-ticker = input('Enter a ticker symbol (e.g. AAPL): ')
-data = yf.download(ticker, period='1y')
+def analyze_stock(ticker):
+    # Download stock data (already adjusted, no Adj Close column)
+    data = yf.download(ticker, period='1y')
 
-# Plot closing price
-plt.figure(figsize=(10, 6))
-plt.plot(data['Close'])
-plt.title(f'{ticker} Closing Price (1Y)')
-plt.xlabel('Date')
-plt.ylabel('Price (USD)')
-plt.show()
+    # Calculate daily returns
+    data['Daily Return'] = data['Close'].pct_change()
 
-# Basic statistics
-stats = {
-    'Mean': data['Close'].mean(),
-    'Median': data['Close'].median(),
-    'Standard Deviation': data['Close'].std(),
-    'Minimum': data['Close'].min(),
-    'Maximum': data['Close'].max()
-}
+    # Calculate moving averages
+    data['SMA20'] = data['Close'].rolling(window=20).mean()
+    data['SMA50'] = data['Close'].rolling(window=50).mean()
+
+    # Basic stats
+    stats = {
+        'Mean Return': data['Daily Return'].mean(),
+        'Volatility (std)': data['Daily Return'].std(),
+        'Max Price': data['Close'].max(),
+        'Min Price': data['Close'].min()
+    }
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(data['Close'], label=f'{ticker} Close')
+    plt.plot(data['SMA20'], label='SMA20')
+    plt.plot(data['SMA50'], label='SMA50')
+    plt.title(f'{ticker} Stock Price & Moving Averages')
+    plt.legend()
+    plt.show()
+
+    return stats, data
+
+# ---- Run single ticker analysis ----
+ticker = input('Enter a ticker (e.g. AAPL): ').upper()
+stats, data = analyze_stock(ticker)
 
 print(f'\nBasic statistics for {ticker}:')
 for k, v in stats.items():
-    try:
-    	print(f'{k}: {float(v):.2f}')
-    except:
-    	print(f'{k}: {v}')
+    print(f'{k}: {v:.4f}' if isinstance(v, float) else f'{k}: {v}')
 
-
-# Compare multiple tickers
-tickers = input('\nEnter tickers separated by commas (e.g. AAPL,MSFT,GOOG): ')
-tickers = [t.strip() for t in tickers.split(',')]
-
-multi_data = yf.download(tickers, period='1y')['Close']
-
-plt.figure(figsize=(12, 7))
-for t in tickers:
-    plt.plot(multi_data.index, multi_data[t], label=t)
-plt.title('Stock Closing Prices Comparison (1Y)')
-plt.xlabel('Date')
-plt.ylabel('Price (USD)')
-plt.legend()
-plt.show()
+# Save to Excel
+output_file = 'stock_analysis.xlsx'
+data.to_excel(output_file, sheet_name=ticker)
+print(f'\nData exported to {output_file}')
